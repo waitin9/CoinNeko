@@ -93,7 +93,22 @@
   .modal h3 { font-size: 20px; font-weight: 800; margin-bottom: 20px; }
   .form-group { margin-bottom: 16px; }
   .form-group label { display: block; font-size: 13px; font-weight: 700; color: var(--text-sub); margin-bottom: 6px; }
-  .form-group input, .form-group select { width: 100%; padding: 12px 14px; border: 2px solid var(--border); border-radius: 10px; font-size: 14px; font-family: inherit; color: var(--text); outline: none; transition: border-color .2s; background: var(--bg); }
+  .form-group input, .form-group select { 
+    width: 100%; 
+    max-width: 100%;      /* 👉 關鍵防護 1：強制最大寬度不准超過外框 */
+    box-sizing: border-box; /* 👉 關鍵防護 2：確保內距 padding 不會往外長 */
+    min-width: 0;         /* 👉 關鍵防護 3：解除 iOS 原生元件的強制最小寬度 */
+    display: block;       /* 👉 關鍵防護 4：確保它乖乖佔滿整行 */
+    padding: 12px 14px; 
+    border: 2px solid var(--border); 
+    border-radius: 10px; 
+    font-size: 14px; 
+    font-family: inherit; 
+    color: var(--text); 
+    outline: none; 
+    transition: border-color .2s; 
+    background: var(--bg); 
+  }
   .form-group input:focus, .form-group select:focus { border-color: var(--purple); }
   .modal-footer { display: flex; gap: 10px; margin-top: 20px; }
   .modal-footer .btn { flex: 1; }
@@ -288,8 +303,8 @@
           </div>
         </div>
         <div class="gacha-buttons">
-          <button class="btn btn-primary" style="padding:14px 28px;font-size:15px;" onclick="doPull(false)">🎟️ 使用扭蛋券</button>
           <button class="btn btn-gold" style="padding:14px 28px;font-size:15px;" onclick="doPull(true)">🪙 用 50 幣抽卡</button>
+          <button class="btn btn-primary" style="padding:14px 28px;font-size:15px;" onclick="doPull(false)">🎟️ 使用扭蛋券</button>
         </div>
         <div class="gacha-result" id="gacha-result"></div>
         <div class="card" style="margin-top:20px;text-align:left;">
