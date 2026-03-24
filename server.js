@@ -106,7 +106,7 @@ if (catCount.c === 0) {
     { id: uuidv4(), name: '鐵路貓', job_title: '司機貓', rarity: 'common', emoji: '🚂', description: '每天精算1200通勤月票到底要搭幾次才回本的精明貓貓。' },
     { id: uuidv4(), name: '魔法貓', job_title: '魔法師貓', rarity: 'legendary', emoji: '🪄', description: '會用神秘咒語讓戶頭數字變多（其實只是定存利息發了）。' },
     { id: uuidv4(), name: '船長喵', job_title: '船長貓', rarity: 'epic', emoji: '⚓', description: '股市裡的超級航海王，看到綠油油的跌停板也面不改色。' },
-    { id: uuidv4(), name: '皇家貓', job_title: '國王貓', rarity: 'legendary', emoji: '👑', description: '只有在發薪日當天，你才能感受到牠的尊爵不凡。' },
+    { id: uuidv4(), name: '冰冰的貓', job_title: '雪花貓', rarity: 'legendary', emoji: '❄️', description: '夏天的時候很有幫助，但冬天的時候抱牠會冷。' },
 
     // === 普通級 (Common) - 守護日常生活的貓咪 ===
     { id: uuidv4(), name: '拉花大師', job_title: '咖啡師貓', rarity: 'common', emoji: '☕', description: '寧願午餐少吃一點，也絕對要喝一杯星巴克續命。' },
