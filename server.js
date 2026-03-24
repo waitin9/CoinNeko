@@ -335,8 +335,8 @@ app.post('/api/gacha/pull', (req, res) => {
   const { use_coins } = req.body;
 
   if (use_coins) {
-    if (user.coins < 50) return res.status(400).json({ error: '貓咪幣不足（需要 50 枚）' });
-    db.prepare('UPDATE users SET coins = coins - 50 WHERE id = ?').run(user.id);
+    //if (user.coins < 50) return res.status(400).json({ error: '貓咪幣不足（需要 50 枚）' });
+    //db.prepare('UPDATE users SET coins = coins - 50 WHERE id = ?').run(user.id);
   } else {
     if (user.gacha_tickets < 1) return res.status(400).json({ error: '扭蛋券不足' });
     db.prepare('UPDATE users SET gacha_tickets = gacha_tickets - 1 WHERE id = ?').run(user.id);
@@ -345,10 +345,10 @@ app.post('/api/gacha/pull', (req, res) => {
   // Weighted random
   const rand = Math.random();
   let rarity;
-  if (rand < 0.005) rarity = 'legendary';
-  else if (rand < 0.05) rarity = 'epic';
-  else if (rand < 0.25) rarity = 'rare';
-  else rarity = 'common';
+  if (rand < 0.02) rarity = 'legendary';        // 2% 機率 (0 ~ 0.02)
+  else if (rand < 0.10) rarity = 'epic';        // 8% 機率 (0.02 ~ 0.10)
+  else if (rand < 0.35) rarity = 'rare';        // 25% 機率 (0.10 ~ 0.35)
+  else rarity = 'common';                       // 65% 機率 (0.35 ~ 1.0)
 
   const pool = db.prepare('SELECT * FROM cat_species WHERE rarity = ?').all(rarity);
   const picked = pool[Math.floor(Math.random() * pool.length)];
