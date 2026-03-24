@@ -312,10 +312,10 @@ app.get('/api/cats/species', (req, res) => {
     SELECT * FROM cat_species 
     ORDER BY 
       CASE rarity 
-        WHEN 'legendary' THEN 1 
-        WHEN 'epic' THEN 2 
-        WHEN 'rare' THEN 3 
-        WHEN 'common' THEN 4 
+        WHEN 'common' THEN 1 
+        WHEN 'rare' THEN 2 
+        WHEN 'epic' THEN 3 
+        WHEN 'legendary' THEN 4 
       END, 
       name
   `).all());
