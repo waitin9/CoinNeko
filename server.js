@@ -308,7 +308,17 @@ app.post('/api/budgets', (req, res) => {
 
 // Cats
 app.get('/api/cats/species', (req, res) => {
-  res.json(db.prepare('SELECT * FROM cat_species ORDER BY rarity DESC, name').all());
+  res.json(db.prepare(`
+    SELECT * FROM cat_species 
+    ORDER BY 
+      CASE rarity 
+        WHEN 'legendary' THEN 1 
+        WHEN 'epic' THEN 2 
+        WHEN 'rare' THEN 3 
+        WHEN 'common' THEN 4 
+      END, 
+      name
+  `).all());
 });
 
 app.get('/api/cats/collection', (req, res) => {
