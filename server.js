@@ -335,8 +335,8 @@ app.post('/api/gacha/pull', (req, res) => {
   const { use_coins } = req.body;
 
   if (use_coins) {
-    //if (user.coins < 50) return res.status(400).json({ error: '貓咪幣不足（需要 50 枚）' });
-    //db.prepare('UPDATE users SET coins = coins - 50 WHERE id = ?').run(user.id);
+    if (user.coins < 50) return res.status(400).json({ error: '貓咪幣不足（需要 50 枚）' });
+    db.prepare('UPDATE users SET coins = coins - 50 WHERE id = ?').run(user.id);
   } else {
     if (user.gacha_tickets < 1) return res.status(400).json({ error: '扭蛋券不足' });
     db.prepare('UPDATE users SET gacha_tickets = gacha_tickets - 1 WHERE id = ?').run(user.id);
