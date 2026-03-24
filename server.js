@@ -4,12 +4,14 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 const PORT = 3001;
 
-app.use(cors());
+app.use(cors({ credentials: true }));
 app.use(bodyParser.json());
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Initialize DB
@@ -185,17 +187,28 @@ if (categoryCount.c === 0) {
   cats2.forEach(c => insertCat2.run(c.id, c.name, c.icon, c.type));
 }
 
-// Seed default user
-const userCount = db.prepare('SELECT COUNT(*) as c FROM users').get();
-if (userCount.c === 0) {
-  db.prepare('INSERT INTO users (id, username, coins, gacha_tickets) VALUES (?,?,?,?)').run(uuidv4(), '喵喵理財師', 0, 3);
+// Seed default data (cats + categories only — users are now per-visitor)
+
+// === PER-VISITOR USER MIDDLEWARE ===
+function getOrCreateUser(req, res) {
+  let visitorId = req.cookies?.visitor_id;
+  if (!visitorId) {
+    visitorId = uuidv4();
+    res.cookie('visitor_id', visitorId, { maxAge: 365 * 24 * 60 * 60 * 1000, httpOnly: true });
+  }
+  let user = db.prepare('SELECT * FROM users WHERE id = ?').get(visitorId);
+  if (!user) {
+    db.prepare('INSERT INTO users (id, username, coins, gacha_tickets) VALUES (?,?,?,?)').run(visitorId, '喵喵理財師', 100, 3);
+    user = db.prepare('SELECT * FROM users WHERE id = ?').get(visitorId);
+  }
+  return { user, visitorId, res };
 }
 
 // === ROUTES ===
 
 // User
 app.get('/api/user', (req, res) => {
-  const user = db.prepare('SELECT * FROM users LIMIT 1').get();
+  const { user } = getOrCreateUser(req, res);
   res.json(user);
 });
 
@@ -207,22 +220,25 @@ app.get('/api/categories', (req, res) => {
 
 // Transactions
 app.get('/api/transactions', (req, res) => {
+  const { user } = getOrCreateUser(req, res);
   const { month } = req.query;
   let query = `SELECT t.*, c.name as cat_name, c.icon as cat_icon, c.type as cat_type
                FROM transactions t JOIN categories c ON t.category_id = c.id
+               WHERE t.user_id = ?
                ORDER BY t.transacted_at DESC`;
   if (month) {
     query = `SELECT t.*, c.name as cat_name, c.icon as cat_icon, c.type as cat_type
              FROM transactions t JOIN categories c ON t.category_id = c.id
-             WHERE strftime('%Y-%m', t.transacted_at) = ? ORDER BY t.transacted_at DESC`;
-    return res.json(db.prepare(query).all(month));
+             WHERE t.user_id = ? AND strftime('%Y-%m', t.transacted_at) = ?
+             ORDER BY t.transacted_at DESC`;
+    return res.json(db.prepare(query).all(user.id, month));
   }
-  res.json(db.prepare(query).all());
+  res.json(db.prepare(query).all(user.id));
 });
 
 app.post('/api/transactions', (req, res) => {
   const { category_id, amount, note } = req.body;
-  const user = db.prepare('SELECT * FROM users LIMIT 1').get();
+  const { user } = getOrCreateUser(req, res);
   if (!category_id || !amount) return res.status(400).json({ error: 'Missing fields' });
 
   const id = uuidv4();
@@ -249,33 +265,36 @@ app.post('/api/transactions', (req, res) => {
 });
 
 app.delete('/api/transactions/:id', (req, res) => {
-  db.prepare('DELETE FROM transactions WHERE id = ?').run(req.params.id);
+  const { user } = getOrCreateUser(req, res);
+  db.prepare('DELETE FROM transactions WHERE id = ? AND user_id = ?').run(req.params.id, user.id);
   res.json({ success: true });
 });
 
 // Summary stats
 app.get('/api/summary', (req, res) => {
+  const { user } = getOrCreateUser(req, res);
   const { month } = req.query;
   const m = month || new Date().toISOString().slice(0, 7);
-  const income = db.prepare(`SELECT COALESCE(SUM(t.amount),0) as total FROM transactions t JOIN categories c ON t.category_id = c.id WHERE c.type='income' AND strftime('%Y-%m', t.transacted_at) = ?`).get(m);
-  const expense = db.prepare(`SELECT COALESCE(SUM(t.amount),0) as total FROM transactions t JOIN categories c ON t.category_id = c.id WHERE c.type='expense' AND strftime('%Y-%m', t.transacted_at) = ?`).get(m);
-  const byCategory = db.prepare(`SELECT c.name, c.icon, c.type, COALESCE(SUM(t.amount),0) as total FROM transactions t JOIN categories c ON t.category_id = c.id WHERE strftime('%Y-%m', t.transacted_at) = ? GROUP BY c.id ORDER BY total DESC`).all(m);
+  const income = db.prepare(`SELECT COALESCE(SUM(t.amount),0) as total FROM transactions t JOIN categories c ON t.category_id = c.id WHERE t.user_id = ? AND c.type='income' AND strftime('%Y-%m', t.transacted_at) = ?`).get(user.id, m);
+  const expense = db.prepare(`SELECT COALESCE(SUM(t.amount),0) as total FROM transactions t JOIN categories c ON t.category_id = c.id WHERE t.user_id = ? AND c.type='expense' AND strftime('%Y-%m', t.transacted_at) = ?`).get(user.id, m);
+  const byCategory = db.prepare(`SELECT c.name, c.icon, c.type, COALESCE(SUM(t.amount),0) as total FROM transactions t JOIN categories c ON t.category_id = c.id WHERE t.user_id = ? AND strftime('%Y-%m', t.transacted_at) = ? GROUP BY c.id ORDER BY total DESC`).all(user.id, m);
   res.json({ income: income.total, expense: expense.total, balance: income.total - expense.total, byCategory });
 });
 
 // Budgets
 app.get('/api/budgets', (req, res) => {
+  const { user } = getOrCreateUser(req, res);
   const { month } = req.query;
   const m = month || new Date().toISOString().slice(0, 7);
   const budgets = db.prepare(`SELECT b.*, c.name as cat_name, c.icon as cat_icon,
-    COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.category_id = b.category_id AND strftime('%Y-%m', t.transacted_at) = b.month), 0) as spent
-    FROM budgets b JOIN categories c ON b.category_id = c.id WHERE b.month = ?`).all(m);
+    COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.category_id = b.category_id AND t.user_id = b.user_id AND strftime('%Y-%m', t.transacted_at) = b.month), 0) as spent
+    FROM budgets b JOIN categories c ON b.category_id = c.id WHERE b.user_id = ? AND b.month = ?`).all(user.id, m);
   res.json(budgets);
 });
 
 app.post('/api/budgets', (req, res) => {
   const { category_id, month, limit_amount } = req.body;
-  const user = db.prepare('SELECT * FROM users LIMIT 1').get();
+  const { user } = getOrCreateUser(req, res);
   const id = uuidv4();
   try {
     db.prepare('INSERT OR REPLACE INTO budgets (id, user_id, category_id, month, limit_amount) VALUES (?,?,?,?,?)').run(id, user.id, category_id, month, limit_amount);
@@ -291,7 +310,7 @@ app.get('/api/cats/species', (req, res) => {
 });
 
 app.get('/api/cats/collection', (req, res) => {
-  const user = db.prepare('SELECT * FROM users LIMIT 1').get();
+  const { user } = getOrCreateUser(req, res);
   const collected = db.prepare(`SELECT uc.*, cs.name, cs.job_title, cs.rarity, cs.emoji, cs.description
     FROM user_cats uc JOIN cat_species cs ON uc.cat_species_id = cs.id
     WHERE uc.user_id = ? ORDER BY uc.acquired_at DESC`).all(user.id);
@@ -300,12 +319,12 @@ app.get('/api/cats/collection', (req, res) => {
 
 // Gacha pull
 app.post('/api/gacha/pull', (req, res) => {
-  const user = db.prepare('SELECT * FROM users LIMIT 1').get();
+  const { user } = getOrCreateUser(req, res);
   const { use_coins } = req.body;
 
   if (use_coins) {
-    if (user.coins < 100) return res.status(400).json({ error: '貓咪幣不足（需要 100 枚）' });
-    db.prepare('UPDATE users SET coins = coins - 100 WHERE id = ?').run(user.id);
+    if (user.coins < 50) return res.status(400).json({ error: '貓咪幣不足（需要 50 枚）' });
+    db.prepare('UPDATE users SET coins = coins - 50 WHERE id = ?').run(user.id);
   } else {
     if (user.gacha_tickets < 1) return res.status(400).json({ error: '扭蛋券不足' });
     db.prepare('UPDATE users SET gacha_tickets = gacha_tickets - 1 WHERE id = ?').run(user.id);
