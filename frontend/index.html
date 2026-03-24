@@ -93,21 +93,31 @@
   .modal h3 { font-size: 20px; font-weight: 800; margin-bottom: 20px; }
   .form-group { margin-bottom: 16px; }
   .form-group label { display: block; font-size: 13px; font-weight: 700; color: var(--text-sub); margin-bottom: 6px; }
+  /* 1. 全域輸入框修正（字體改為 16px 防止 iOS 亂縮放，並解除原生綁定） */
   .form-group input, .form-group select { 
     width: 100%; 
-    max-width: 100%;      /* 👉 關鍵防護 1：強制最大寬度不准超過外框 */
-    box-sizing: border-box; /* 👉 關鍵防護 2：確保內距 padding 不會往外長 */
-    min-width: 0;         /* 👉 關鍵防護 3：解除 iOS 原生元件的強制最小寬度 */
-    display: block;       /* 👉 關鍵防護 4：確保它乖乖佔滿整行 */
+    max-width: 100%;      
+    box-sizing: border-box; 
+    min-width: 0;         
+    display: block;       
     padding: 12px 14px; 
     border: 2px solid var(--border); 
     border-radius: 10px; 
-    font-size: 14px; 
+    font-size: 16px; /* 👉 關鍵防護 1：必須是 16px，iOS 點擊時才不會強制放大畫面 */
     font-family: inherit; 
     color: var(--text); 
     outline: none; 
     transition: border-color .2s; 
     background: var(--bg); 
+    -webkit-appearance: none; /* 👉 關鍵防護 2：拔除蘋果原生的強制外觀與寬度 */
+    appearance: none;
+  }
+
+  /* 2. 針對月份/日期的額外防護 */
+  .form-group input[type="month"] {
+    position: relative;
+    overflow: hidden; /* 把超出的原生 UI 切掉 */
+    background-color: var(--bg);
   }
   .form-group input:focus, .form-group select:focus { border-color: var(--purple); }
   .modal-footer { display: flex; gap: 10px; margin-top: 20px; }
