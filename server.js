@@ -287,8 +287,7 @@ app.post('/api/gacha/pull', (req, res) => {
 
 // Serve frontend
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
-});
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));)});
 
 app.listen(PORT, () => {
   console.log(`🐱 CoinNeko server running at http://localhost:${PORT}`);
